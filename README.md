@@ -40,14 +40,28 @@ sudo service mongodb stop ----> para detener la base de datos
 sudo service mongodb restart ----> para reiniciar la bd
 mongo -----> para acceder al shell de mongo
 
-https://www.tutorialspoint.com/mongodb/mongodb_java.htm
+uso de mongodb en java----> http://zetcode.com/springboot/mongodb/ (para hacerlo con mongorepository)
+https://spring.io/guides/gs/accessing-data-mongodb/
+
+Con MongoRepository, se conecta automaticamente a la base de datos que especifiquemos en el archivo properties, y nos proporciona ya metodos para guardar,borrar , buscar, etc.
+
+https://www.tutorialspoint.com/mongodb/mongodb_java.htm // para hacerlo manualmente (no lo use)
+
+- Coleccion: equivalente a una tabla en sql
+- Documento: un registro de la bd
+
 
 ## ROBO3T
 
 Herramienta para administrar visualmente la base de datos MongoDB (GUI)
 
-Para instalar: En ubuntu, desde la store, en windows, desde la pagina.
+Para instalar: En ubuntu: desde la store, en windows: desde la pagina.
 
 Tutorial para usar: https://victorroblesweb.es/2017/10/07/trabajar-con-mongodb-visualmente-gui-robo3t/
 
+## HTTPCLIENT (libreria)
+
+Libreria de JAVA para realizar peticiones REST
+
+https://www.arquitecturajava.com/java-httpclient-invocando-un-servicio-rest/
 

@@ -1,17 +1,24 @@
 package com.example.Scrapingdemo;
 
 import com.example.Scrapingdemo.domain.Person;
+import com.example.Scrapingdemo.repository.MongoDB;
+import com.example.Scrapingdemo.repository.PersonRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mongodb.client.FindIterable;
+import com.mongodb.client.MongoCollection;
+import org.bson.Document;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Iterator;
 
 @SpringBootApplication
 public class ScrapingDemoApplication {
@@ -31,7 +38,7 @@ public class ScrapingDemoApplication {
 
 		System.out.println(link);*/
 
-
+/*
 		
 		//https://jsoup.org/cookbook/extracting-data/dom-navigation
 		try {
@@ -65,11 +72,13 @@ public class ScrapingDemoApplication {
 			e.printStackTrace();
 		}
 
+		//there are more JSOUP functions. investigate. for eg: remove elements from a html
+*/
 		/// ------------------ JACKSON -----------------
 		// ---> agregar dependencia con la version mas reciente
 		ObjectMapper JSON_MAPPER = new ObjectMapper();
 
-		Person person = new Person("Allan", 22);
+		Person person = new Person("1", "Allan", 22);
 		String jsonString = null;
 		try {
 			jsonString = JSON_MAPPER.writeValueAsString(person);
@@ -86,8 +95,8 @@ public class ScrapingDemoApplication {
 			e.printStackTrace();
 		}
 
-		Person a = new Person("Juan",25);
-		Person b = new Person("Mario", 42);
+		Person a = new Person("2","Juan",25);
+		Person b = new Person("3","Mario", 42);
 		ArrayList<Person> array = new ArrayList<Person>();
 		array.add(a);
 		array.add(b);
@@ -102,6 +111,11 @@ public class ScrapingDemoApplication {
 			e.printStackTrace();
 		}
 
+
+
+
+		//--------- MONGODB --------
+		// made in the PersonRepository y tested in the MainController
 
 	}
 
