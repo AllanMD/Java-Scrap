@@ -107,16 +107,13 @@ public class App
                     .maxBodySize(0) // jsoup has a default maxBodySize and thats why i received an uncomplete body
                     .timeout(600000)
                     .get();
-            //Element script = doc.selectFirst("#BODY_BLOCK_JQUERY_REFLOW");  // trae toda la pagina entera, de ahi se busca el JSON que contiene todos los datos importantes // hay que traer toda la pagina, ya que la parte que contiene el JSON cambia de ubicacion en cada peticion para evitar scraping (?)
-            //intentar pasar la parte de arriba a solo seleccionar los script de la pagina, usar stream y filtrar por el que contenga "window.__WEB_CONTEXT_"
 
-
-            // TERMINAR DE PASAR ESTO, asignar esto a body (cambiar nombre de body a bodyString o scriptString)
+	    // we get all the scripts of the page, and from that list of scripts, we keep the one that contains "window.__WEB_CONTEXT", since 		    //there is all the info
             Optional<String> script = doc.getElementsByTag("script").stream()
                     .map(Element::toString)
                     .filter(scriptBody -> scriptBody.contains("window.__WEB_CONTEXT_"))
                     .findAny();
-                    // getElementsByTag: Elements
+                    // getElementsByTag: Elements // returns Elements
                     // .stream : Stream<Element>
                     // ? : Stream<String>
                     // .filter : Stream<Element>
@@ -132,7 +129,7 @@ public class App
             int indexTo = json.indexOf(to);
             if (indexFrom != -1 && indexTo != -1){
                 jsonString = json.substring(indexFrom, indexTo-1);
-                jsonString = "{" + jsonString + "}"; // formatear correctamente el json. validar en: https://jsonformatter.curiousconcept.com/
+                jsonString = "{" + jsonString + "}"; // to format the JSON properly. validar en: https://jsonformatter.curiousconcept.com/
             }
         } catch (IOException e) {
             e.printStackTrace();
