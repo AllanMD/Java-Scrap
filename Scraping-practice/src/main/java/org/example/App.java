@@ -14,6 +14,7 @@ import javax.swing.text.html.Option;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Hello world!
@@ -48,7 +49,7 @@ public class App
     public static Restaurant getRestaurantByUrl(String url) throws Exception {
         //we have to find the script that contains all the info of the restaurant in the HTML of the page.
         // Tip: right click over a tag > copy > css selector
-        System.out.println(url);
+        System.out.println("URL: " + url);
         String jsonString = getJsonFromPage(url);
         System.out.println("JSON: " + jsonString);
 
@@ -106,12 +107,12 @@ public class App
                     .maxBodySize(0) // jsoup has a default maxBodySize and thats why i received an uncomplete body
                     .timeout(600000)
                     .get();
-            Element body = doc.selectFirst("#BODY_BLOCK_JQUERY_REFLOW");  // trae toda la pagina entera, de ahi se busca el JSON que contiene todos los datos importantes // hay que traer toda la pagina, ya que la parte que contiene el JSON cambia de ubicacion en cada peticion para evitar scraping (?)
+            //Element script = doc.selectFirst("#BODY_BLOCK_JQUERY_REFLOW");  // trae toda la pagina entera, de ahi se busca el JSON que contiene todos los datos importantes // hay que traer toda la pagina, ya que la parte que contiene el JSON cambia de ubicacion en cada peticion para evitar scraping (?)
             //intentar pasar la parte de arriba a solo seleccionar los script de la pagina, usar stream y filtrar por el que contenga "window.__WEB_CONTEXT_"
 
 
-            /* // TERMINAR DE PASAR ESTO, asignar esto a body (cambiar nombre de body a bodyString o scriptString)
-            var scriptBodyOptional = doc.getElementsByTag("script").stream()
+            // TERMINAR DE PASAR ESTO, asignar esto a body (cambiar nombre de body a bodyString o scriptString)
+            Optional<String> script = doc.getElementsByTag("script").stream()
                     .map(Element::toString)
                     .filter(scriptBody -> scriptBody.contains("window.__WEB_CONTEXT_"))
                     .findAny();
@@ -121,10 +122,8 @@ public class App
                     // .filter : Stream<Element>
                     // .collect : Element
 
-            */
 
-
-            String json = body.toString();
+            String json = script.get(); // get() to obtain the data from the optional
 
              String from = "\"api\":"; // https://www.lawebdelprogramador.com/foros/Java/596168-introduccion-de-comillas-en-un-string-java.html
             // redux ---> api -->  responses       ----> "/data/1.0/location/15801762" ??? es la url de la api
@@ -205,7 +204,7 @@ public class App
         data = data.get( idsUrl + "?tags=&reviewStubInfo=true&sponsoredLocationIndices=0").get("data").get("restaurants");
 
         List<String> urls = getPagesUrls(data);
-        System.out.println("urls size: " + urls.size());
+        System.out.println("urls array size: " + urls.size());
         List<Restaurant> restaurants = new ArrayList<Restaurant>();
         for (int i = 0; i < urls.size(); i++) {
             restaurants.add(getRestaurantByUrl(urls.get(i)));
