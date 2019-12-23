@@ -2,7 +2,9 @@ package com.avalith.Productsscraping.repository;
 
 import com.avalith.Productsscraping.model.Product;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.stereotype.Repository;
 
+@Repository
 public interface ProductRepository extends MongoRepository<Product, String> { // first parameter is the type of the data and the second the type of the id
 
     //List<Person> findAllByAgeGreater(int floor); // eg custom query

@@ -1,15 +1,13 @@
 package com.avalith.Productsscraping.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.ToString;
+import lombok.*;
 import org.springframework.data.annotation.Id;
 
 @Data
 @ToString
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class Product {
     @Id
     private String id;
@@ -21,6 +19,17 @@ public class Product {
     private float priceInEur;
     private float yesterdayMaxPrice;
     private float variation;
+
+    public Product(String name, String category, String metrics, float priceInPesos, float priceInUsd, float priceInEur, float yesterdayMaxPrice, float variation) {
+        this.name = name;
+        this.category = category;
+        this.metrics = metrics;
+        this.priceInPesos = priceInPesos;
+        this.priceInUsd = priceInUsd;
+        this.priceInEur = priceInEur;
+        this.yesterdayMaxPrice = yesterdayMaxPrice;
+        this.variation = variation;
+    }
 
     public String getName() {
         return name;
