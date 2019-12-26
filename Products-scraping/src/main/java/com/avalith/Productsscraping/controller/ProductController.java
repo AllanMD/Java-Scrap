@@ -2,10 +2,14 @@ package com.avalith.Productsscraping.controller;
 
 import com.avalith.Productsscraping.model.Product;
 import com.avalith.Productsscraping.service.ProductService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
 @RestController()
 @RequestMapping("")
@@ -37,7 +41,16 @@ public class ProductController {
 
     @PostMapping("scrap")
     public List<Product> scrapPage (@RequestBody String url){
-        return productService.scrap(url);
+        try {
+            return productService.scrap(url);
+        } catch (IOException e) {
+            // Create a Logger
+            Logger logger = Logger.getLogger(ProductService.class.getName());
+            logger.info(e.getMessage());
+
+            //e.printStackTrace(); ---> delete
+        }
+        return new ArrayList<>(); // if the scraping fails, we return an empty array
     }
 
 }
