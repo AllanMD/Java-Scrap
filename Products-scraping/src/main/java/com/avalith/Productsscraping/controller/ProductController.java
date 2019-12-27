@@ -2,7 +2,6 @@ package com.avalith.Productsscraping.controller;
 
 import com.avalith.Productsscraping.model.Product;
 import com.avalith.Productsscraping.service.ProductService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,24 +24,24 @@ public class ProductController {
     // RequestParam ---> receive things from the URL in query format. eg: /products?id=1
     // PathVariable ---> receive things from the URL . eg: /product/{id}
     @PostMapping("")
-    public Product save(@RequestBody Product product){
+    public Product save(@RequestBody Product product) {
         return productService.save(product);
     }
 
     @PostMapping("saveList")
-    public void save (@RequestBody List<Product> products){
+    public void save(@RequestBody List<Product> products) {
         productService.save(products);
     }
 
     @GetMapping("")
-    public List<Product> getAll (){
+    public List<Product> getAll() {
         return productService.getAll();
     }
 
     @PostMapping("scrap")
-    public List<Product> scrapPage (@RequestBody String url){
+    public List<Product> scrapPage() {
         try {
-            return productService.scrap(url);
+            return productService.scrap();
         } catch (IOException e) {
             // Create a Logger
             Logger logger = Logger.getLogger(ProductService.class.getName());
@@ -51,6 +50,11 @@ public class ProductController {
             //e.printStackTrace(); ---> delete
         }
         return new ArrayList<>(); // if the scraping fails, we return an empty array
+    }
+
+    @GetMapping("csv")
+    public List<Product> readCSV() {
+        return productService.getAllFromCSV();
     }
 
 }

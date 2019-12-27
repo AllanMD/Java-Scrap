@@ -8,9 +8,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class ProductsScrapingApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(ProductsScrapingApplication.class, args);
+    public static void main(String[] args) {
+        SpringApplication.run(ProductsScrapingApplication.class, args);
 
-	}
+    }
 
 }

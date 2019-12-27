@@ -2,6 +2,8 @@ package com.avalith.Productsscraping.service;
 
 import com.avalith.Productsscraping.model.Product;
 import com.avalith.Productsscraping.repository.ProductRepository;
+import com.opencsv.CSVReader;
+import com.opencsv.CSVReaderBuilder;
 import com.opencsv.CSVWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.val;
@@ -15,17 +17,18 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
-import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor // otra forma de inyectar dependencia, lo inyecta a private final productRepository. El "final" debe estar para indicar que ese atributo es requerido en el constructor
+@RequiredArgsConstructor
+// another way to inject dependencies. it injects it into "private final productRepository". The "final" statement indicates that that attirbute is required in the constructor. The @RequiredConstructor annotation takes care of injecting the dependency
 public class ProductService {
 
-    //Reemplazar inyeccion de dependencias del field, por inyeccion de constructor o de setter // LISTO (?)
     private final ProductRepository productRepository;
-
 
     public Product save(Product product) {
         return productRepository.save(product);
@@ -39,19 +42,20 @@ public class ProductService {
         return productRepository.findAll();
     }
 
-    public List<Product> scrap(String url) throws IOException {
+    public List<Product> scrap() throws IOException {
 
         //TODO: si podes reemplazar por val, y nombrar con ducktyping // LISTO
         // http://blog.chuidiang.org/2013/01/09/duck-typing/
-        val listsElements = getListsFromPage("https://www.lamayorista.com.co/"); // CHANGE LATER TO URL // https://www.genbeta.com/desarrollo/entendiendo-la-inmutabilidad-que-es-para-que-sirve-y-como-usarla
+        // https://www.genbeta.com/desarrollo/entendiendo-la-inmutabilidad-que-es-para-que-sirve-y-como-usarla
+        val listsElements = getListsFromPage("https://www.lamayorista.com.co/");
         // val --> if the object wont change in the future
         // var ---> if the object may change in the future
         List<Product> products = getAllProductsFromLists(listsElements.get());
 
         System.out.println("Cantidad de productos:" + products.size());
 
-        save(products); // persistimos los datos en mongodb
-        saveListToCSV(products); // persistimos los datos en archivo CSV
+        save(products); // to persist data in MongoDB
+        saveListToCSV(products); // to persist data in CSV file
 
         return products;
     }
@@ -64,9 +68,7 @@ public class ProductService {
      * @return
      */
     public Optional<Elements> getListsFromPage(String url) throws IOException {
-        //TODO: trata de evitar null // usar optional //LISTO (?)
 
-        //Elements lists = null; // PREGUNTAR
         Document doc = Jsoup.connect(url) // https://github.com/jhy/jsoup/issues/287 , to solve the problem that certain times jsoup didnt bring all the HTML
                 .header("Accept-Encoding", "gzip, deflate")
                 .userAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0")
@@ -74,7 +76,6 @@ public class ProductService {
                 .timeout(600000)
                 .get();
 
-        //TODO // mapearlo en doc
         Optional<Elements> lists = Optional.ofNullable(doc.getElementById("Tap").getElementsByTag("li")); // "Tap" contains the li elements
         return lists;
     }
@@ -86,12 +87,12 @@ public class ProductService {
      * @return
      */
     public List<Product> getProductsFromList(Optional<Element> list) {
-        String category = list
+        String category = list // all the products in each list belongs to the same category
                 .map(element -> element.selectFirst("a"))
                 .map(Element::text)
                 .orElse("");
-
         //String category = list.selectFirst("a").text(); // all the products in each list belongs to the same category
+
         Optional<Elements> rows = list
                 .map(element -> element.getElementsByClass("gradeA"));
 
@@ -101,6 +102,9 @@ public class ProductService {
                 .map(singleRow -> getProductFromRow(singleRow, category))
                 //.filter(product -> product.getCategory().equalsIgnoreCase("frutas")) // only for example, (delete)
                 .collect(Collectors.toList());
+
+        // .map() ---> para obtener datos con determinado criterio
+        //.filter() ---> para filtrar esos datos en base a una condicion que se cumpla (true o false)
 
         return productList;
     }
@@ -121,7 +125,7 @@ public class ProductService {
         float variation = getProductVariationFromRow(row);
 
         return Product.builder()
-                .category(category) // all the products in each list belongs to the same category
+                .category(category)
                 .name(name)
                 .metrics(metrics)
                 .priceInPesos(priceInPesos)
@@ -146,7 +150,7 @@ public class ProductService {
             for (Product p : array) {
                 products.add(p); // we have to combine all the products arrays in one array
             }
-        }*/ // es lo mismo que lo de abajo
+        }*/ // its the same as below
 
         val products = lists.stream()
                 .map(element -> getProductsFromList(Optional.ofNullable(element))) // obtenemos la lista de products
@@ -157,16 +161,15 @@ public class ProductService {
 
     // ------- GETTERS FOR SINGLE ROW OF THE <li> ELEMENT ------
     public String getProductNameFromRow(Element row) {
-
         //Optional<Element> nameElementOptional = Optional.of(row.getElementsByTag("td").get(0));
         //String name = Optional.of(nameElementOp.get().text()).orElse("");
-        
+
+        // a more simplified way to do it:
         String name = Optional.ofNullable(row) // in the first position of the td, me have the name
                 .map(rowNonNull -> rowNonNull.getElementsByTag("td"))
-                .map(Elements::first)
+                .map(Elements::first) // in the first position, we find the name
                 .map(Element::text)//text(): brings only the text inside the tag
                 .orElse("");
-        // a more simplified way to do it
 
         return name;
     }
@@ -176,8 +179,6 @@ public class ProductService {
                 .map(rowNonNull -> rowNonNull.getElementsByTag("td"))
                 .map(elements -> elements.get(1));
 
-        // .map() ---> para obtener datos con determinado criterio
-        //.filter() ---> para filtrar esos datos en base a una condicion que se cumpla (true o false)
 
         String metrics = metricElementOptional
                 .map(Element::text)
@@ -202,7 +203,7 @@ public class ProductService {
         String priceInPesos = "";
         float price = 0f;
 
-        if (row.getElementsByTag("td").get(2) != null){
+        if (row.getElementsByTag("td").get(2) != null){ // <-- no longer necessary with the use of optional
             priceInPesos = row.getElementsByTag("td").get(2).text();
 
             priceInPesos = priceInPesos.replace("$", "");
@@ -290,7 +291,7 @@ public class ProductService {
         boolean exist = new File(FILE_NAME).exists();
 
         //https://picodotdev.github.io/blog-bitix/2018/04/la-sentencia-try-with-resources-de-java/
-        try (CSVWriter outputCsv = new CSVWriter(new FileWriter(FILE_NAME, true), ',')) { // de esta manera, el recurso outputcsv se cierra solo sin tener que llamar de forma explicita a la funcion cloe
+        try (CSVWriter outputCsv = new CSVWriter(new FileWriter(FILE_NAME, true), ',')) { // with this, the outputcsv resource closes alone, without having to call the close() method explicitly
 
             if (!exist) { // To add a header to the CSV File
                 //https://stackoverflow.com/questions/3413586/string-to-string-array-conversion-in-java
@@ -298,13 +299,11 @@ public class ProductService {
                 outputCsv.writeNext(header);
             }
 
-
             String[] content = productToStringArray(product);
 
             outputCsv.writeNext(content);
 
             //outputCsv.close(); // not necessary with the use of try-with-resources
-
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -327,6 +326,7 @@ public class ProductService {
                 //https://stackoverflow.com/questions/3413586/string-to-string-array-conversion-in-java
                 String[] header = new String[]{"name", "category", "metrics", "priceInPesos", "priceInUsd", "priceInEur", "yesterdayMaxPrice", "variation"};
                 outputCsv.writeNext(header);
+                // i could save ID too
             }
 
 
@@ -339,9 +339,42 @@ public class ProductService {
         }
     }
 
+    /**
+     * Reads all the data from the CSV file
+     *
+     * @return
+     */
     public List<Product> getAllFromCSV() {
-        // COMPLETE IN THE FUTURE
-        return new ArrayList<>();
+
+        try (Reader reader = Files.newBufferedReader(Paths.get("products.csv"));
+             CSVReader csvReader = new CSVReaderBuilder(reader).withSkipLines(1).build();
+             //to skip the header when reading the file (withSkipLines)
+        ) {
+
+            List<Product> products = csvReader.readAll().stream() //csvReader.readAll(); returns a List<String[]>
+                    .map(record -> getProductFromCsvRecord(record))
+                    .collect(Collectors.toList());
+
+            return products;
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return new ArrayList<>(); // empty if the reading fails
+    }
+
+    public Product getProductFromCsvRecord(String[] record) {
+        return Product.builder()
+                .name(record[0])
+                .category(record[1])
+                .metrics(record[2])
+                .priceInPesos(Float.parseFloat(record[3]))
+                .priceInUsd(Float.parseFloat(record[4]))
+                .priceInEur(Float.parseFloat(record[5]))
+                .yesterdayMaxPrice(Float.parseFloat(record[6]))
+                .variation(Float.parseFloat(record[7]))
+                .build();
     }
 
     /**
@@ -382,8 +415,3 @@ public class ProductService {
     }
 
 }
-
-/*
-Optional.of(objeto) // para convertir un objeto en optional
-Optional<Tipo objeto> nombre objetoi
-*/
