@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
 
 import java.util.List;
 
@@ -13,8 +14,11 @@ import java.util.List;
 @Builder
 public class Product {
 
-    private String name;
-    private float price;
+    @Id
+    private String name; // de esta forma no se guardan duplicados de los productos, se hace update en caso de ya existir en la bd
+    private float minPrice;
+    private float maxPrice;
     private List<String> categories;
+    //SKU ?
 
 }
