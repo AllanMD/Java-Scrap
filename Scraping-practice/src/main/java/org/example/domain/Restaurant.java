@@ -1,8 +1,11 @@
 package org.example.domain;
 
+import lombok.Builder;
+
 import java.util.ArrayList;
 import java.util.List;
 
+@Builder
 public class Restaurant {
     private String name;
     private String address;
