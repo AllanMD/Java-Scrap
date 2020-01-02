@@ -9,6 +9,7 @@ import org.example.domain.Restaurant;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.util.*;
@@ -37,8 +38,7 @@ public class App {
         System.out.println("Cantidad de restaurantes: " + restaurants.size());*/
 
         //scrapAllRestaurantsByCity("https://www.tripadvisor.com.ar/Restaurants-g294305-Santiago_Santiago_Metropolitan_Region.html");
-        scrapAllRestaurantsByCity("https://www.tripadvisor.com.ar/Restaurants-g295425-Vina_del_Mar_Valparaiso_Region.html");
-
+        scrapAllRestaurantsByCountry("https://www.tripadvisor.com.ar/Restaurants-g294291-Chile.html");
     }
 
 
@@ -300,7 +300,6 @@ public class App {
             restaurants.addAll(restaurantList);
         }
         //TODO: aca guardar en BD o en CSV, fijarse si hay que guardar por cada pagina o guardar de una la lista entera.
-        //TODO: retornar la lista
         return restaurants;
     }
 
@@ -348,6 +347,37 @@ public class App {
         int from = url.lastIndexOf("-");
         String extension = url.substring(from);
         return extension;
+    }
+
+    public static void scrapAllRestaurantsByCountry(String url) throws IOException {
+        Optional<Document> doc = Optional.ofNullable(Jsoup.connect(url)
+                .header("Accept-Encoding", "gzip, deflate")
+                .userAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0")
+                .maxBodySize(0)
+                .timeout(600000)
+                .get());
+        val citiesUrls = getCitiesUrlsByPage(doc);
+        System.out.println("citiesUrls: " + citiesUrls);
+    }
+
+    public static List<String> getCitiesUrlsByPage(Optional<Document> doc) {
+
+        Optional<Elements> elements = doc.map(document -> document.getElementsByClass("geo_name"))
+                .map(element -> element.select("a"));
+
+        List<String> citiesUrls = elements
+                .map(element -> StreamSupport.stream(element.spliterator(), false) // no me deja hacer stream directamente sobre elements.
+                .map(elements1 -> elements1.attr("abs:href"))
+                .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+
+        return citiesUrls;
+        /*
+        // para probar: moverlo
+        int numberOfPages = getNumberOfPages(doc);
+        System.out.println("pages: " + numberOfPages);
+         */
+
     }
 
     // ------ The methods here below are for getting info from the restaurant json ------
