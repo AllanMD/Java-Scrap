@@ -9,7 +9,6 @@ import org.example.domain.Restaurant;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 
 import java.io.IOException;
 import java.util.*;
@@ -20,7 +19,7 @@ import java.util.stream.StreamSupport;
  * Hello world!
  */
 public class App {
-    public static String BASE_URL = "https://www.tripadvisor.com.ar";
+    public static final String BASE_URL = "https://www.tripadvisor.com.ar";
 
     public static void main(String[] args) throws Exception { // TODO: manejar excepciones
         System.out.println("Hello World!");
@@ -58,7 +57,7 @@ public class App {
         if (jsonString.isEmpty()) {
             throw new Exception("Could not get json from the page");
         }
-        JsonNode jsonObject = getJsonObjectByString(jsonString); // check that jsonobject isnt null
+        JsonNode jsonObject = getJsonObjectByString(jsonString);
         if (jsonObject.isNull()) {
             throw new Exception();
         }
@@ -228,9 +227,11 @@ public class App {
             indexTo = json.indexOf(extension);
         }
         String idsUrl = json.substring(indexFrom, indexTo);
-
-        data = data.get(idsUrl + extension).get("data").get("restaurants");
-
+        if (data.get(idsUrl + extension) != null){
+            data = data.get(idsUrl + extension).get("data").get("restaurants");
+        }else {
+            data = data.get(idsUrl + extension +",1").get("data").get("restaurants"); // porq en base a la cantidad de restaurants patrocinados ( 1 o 2), sponsoredLocationIndices=0 o sponsoredLocationIndices=0,1
+        }
         List<String> urls = getPagesUrls(data);
         System.out.println("urls array size: " + urls.size());
         val restaurants = getRestaurantsFromUrls(urls);
@@ -246,13 +247,16 @@ public class App {
      * @return
      * @throws Exception
      */
-    public static List<Restaurant> getRestaurantsFromUrls(List<String> urls) throws Exception {
+    public static List<Restaurant> getRestaurantsFromUrls(List<String> urls) {
         List<Restaurant> restaurants = new ArrayList<Restaurant>();
 
         for (int i = 0; i < urls.size(); i++) {
-            restaurants.add(getRestaurantByUrl(urls.get(i)));
+            try {
+                restaurants.add(getRestaurantByUrl(urls.get(i)));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
-
         return restaurants;
     }
 
@@ -278,7 +282,7 @@ public class App {
      * @return
      * @throws Exception
      */
-    public static List<Restaurant> scrapAllRestaurantsByCity(String url) throws Exception {
+    public static List<Restaurant> scrapAllRestaurantsByCity(String url) throws IOException {
         Document doc = Jsoup.connect(url)
                 .header("Accept-Encoding", "gzip, deflate")
                 .userAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0")
@@ -286,20 +290,25 @@ public class App {
                 .timeout(600000)
                 .get();
         String pageId = getPageId(url);
-        String cityExtension = getPageCityExtension(url);
+        String cityExtension = getPageExtension(url);
         int numberOfPages = getNumberOfPages(Optional.ofNullable(doc));
         int restaurantsByPage = 30; // every page has 30 restaurants, we need this info because the pagination in the url is made by the amount of restaurants, and not the pages
         //for example: "oa30" : the restaurants from 30 to 60
         //(https://www.tripadvisor.com.ar/Restaurants-g294305-oa30-Santiago_Santiago_Metropolitan_Region.html#EATERY_LIST_CONTENTS)
         List<Restaurant> restaurants = new ArrayList<>();
         for (int i = 0; i < numberOfPages; i++) {
-            int restaurantsNumber = i * restaurantsByPage;
-            String pageUrl = "https://www.tripadvisor.com.ar/Restaurants" + pageId + "-oa" + restaurantsNumber + cityExtension;
-            val restaurantList = getRestaurantsByPage(pageUrl);
-            System.out.println("Pagina: " + i + " Ultimo restaurant" + restaurantList.get(restaurantList.size() - 1));
-            restaurants.addAll(restaurantList);
+            try {
+                int restaurantsNumber = i * restaurantsByPage;
+                String pageUrl = "https://www.tripadvisor.com.ar/Restaurants" + pageId + "-oa" + restaurantsNumber + cityExtension;
+                val restaurantList = getRestaurantsByPage(pageUrl);
+                System.out.println("Pagina: " + i + " Ultimo restaurant" + restaurantList.get(restaurantList.size() - 1));
+                restaurants.addAll(restaurantList);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+
         }
-        //TODO: aca guardar en BD o en CSV, fijarse si hay que guardar por cada pagina o guardar de una la lista entera.
+        //TODO: aca guardar en BD o en CSV, fijarse si hay que guardar por cada pagina o guardar de una la lista entera. Mas adelante, cuando se pase todo a Spring.
         return restaurants;
     }
 
@@ -336,12 +345,12 @@ public class App {
     }
 
     /**
-     * Gets the city extension of a URL.
+     * Gets the page extension of a URL.
      *
      * @param url
      * @return
      */
-    public static String getPageCityExtension(String url) {
+    public static String getPageExtension(String url) {
         //https://www.tripadvisor.com.ar/Restaurants-g294305-Santiago_Santiago_Metropolitan_Region.html
         //we want to extract: "-Santiago_Santiago_Metropolitan_Region.html"
         int from = url.lastIndexOf("-");
@@ -349,35 +358,101 @@ public class App {
         return extension;
     }
 
-    public static void scrapAllRestaurantsByCountry(String url) throws IOException {
-        Optional<Document> doc = Optional.ofNullable(Jsoup.connect(url)
+    public static List<Restaurant> scrapAllRestaurantsByCountry(String url) throws Exception {
+        Optional<Document> doc = getDocumentByPage(url);
+
+        val citiesUrls = getCitiesUrlsByCountry(doc);
+        List<Restaurant> restaurants = citiesUrls.stream()
+                .map(link -> {
+                    try {
+                        return scrapAllRestaurantsByCity(link);
+                    } catch (Exception e) {
+                        e.printStackTrace(); //todo: log
+                    }
+                    return new ArrayList<Restaurant>();
+                })
+                .flatMap(Collection::stream)
+                .collect(Collectors.toList());
+
+        return restaurants;
+    }
+
+    public static List<String> getCitiesUrlsByCountry(Optional<Document> document) throws Exception {
+        int pages = getNumberOfPages(document);
+        int citiesByPage = 20;
+        String pageId = getPageId(document.map(document1 -> document1.baseUri()).orElse(""));
+        String extension = getPageExtension(document.map(document1 -> document1.baseUri()).orElse(""));
+        List<String> citiesUrls = new ArrayList<>();
+        for (int i = 0; i < pages; i++) {
+            int paginationNumber = i * citiesByPage;
+            String url = BASE_URL + "/Restaurants" + pageId + "-oa" + paginationNumber + extension;
+            System.out.println("buscando:" + url);
+            citiesUrls.addAll(getCitiesUrlsByPage(url));
+        }
+        System.out.println("cantidad de urls total" + citiesUrls.size());
+        return citiesUrls;
+    }
+
+    public static List<String> getCitiesUrlsByPage(String url) throws IOException {
+        val doc = getDocumentByPage(url);
+        String className = "geo_name";
+        if (doc.map(document -> document.getElementsByClass("geo_name").isEmpty()).get()) {
+            className = "geoList";
+        }
+
+        String finalClassName = className;
+        List<String> citiesUrls = doc
+                .map(document -> document.getElementsByClass(finalClassName))
+                .map(elements -> elements.select("a"))
+                .map(element -> StreamSupport.stream(element.spliterator(), false)
+                        .map(e -> e.attr("abs:href"))
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+        /*
+        citiesUrls = doc
+                .map(document -> getCitiesUrlsByGeoName(Optional.ofNullable(document)))
+                .orElse(Collections.emptyList());
+        if (citiesUrls.isEmpty()) {
+            citiesUrls = doc
+                    .map(document -> getCitiesUrlsByGeoList(Optional.ofNullable(document)))
+                    .orElse(Collections.emptyList());
+        }
+        //TODO: borrar esta parte y los dos metodos (urlsbygeoname y urlsbygeolist, ya no se usan)
+         */
+        System.out.println("cities urls: " + citiesUrls);
+        return citiesUrls;
+
+    }
+
+    public static List<String> getCitiesUrlsByGeoName(Optional<Document> doc) {
+        List<String> citiesUrls = doc
+                .map(document -> document.getElementsByClass("geo_name"))
+                .map(element -> element.select("a"))
+                .map(element -> StreamSupport.stream(element.spliterator(), false) // no me deja hacer stream directamente sobre elements. //TODO
+                        .map(e -> e.attr("abs:href"))
+                        .collect(Collectors.toList()))
+                .orElse(getCitiesUrlsByGeoList(doc)); // ya que hay paginas q tienen los datos en la clase geoList y no en geo_name
+        return citiesUrls; //TODO: preguntar porq aca no funciona bien el orelse y optimizar getCitiesUrls
+    }
+
+    public static List<String> getCitiesUrlsByGeoList(Optional<Document> doc) {
+        List<String> citiesUrls = doc
+                .map(document -> document.getElementsByClass("geoList"))
+                .map(elements -> elements.select("a"))
+                .map(element -> StreamSupport.stream(element.spliterator(), false)
+                        .map(e -> e.attr("abs:href"))
+                        .collect(Collectors.toList()))
+                .orElse(Collections.emptyList());
+        return citiesUrls;
+    }
+
+    public static Optional<Document> getDocumentByPage(String url) throws IOException {
+        return Optional.ofNullable(Jsoup.connect(url)
                 .header("Accept-Encoding", "gzip, deflate")
                 .userAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:23.0) Gecko/20100101 Firefox/23.0")
                 .maxBodySize(0)
                 .timeout(600000)
                 .get());
-        val citiesUrls = getCitiesUrlsByPage(doc);
-        System.out.println("citiesUrls: " + citiesUrls);
-    }
-
-    public static List<String> getCitiesUrlsByPage(Optional<Document> doc) {
-
-        Optional<Elements> elements = doc.map(document -> document.getElementsByClass("geo_name"))
-                .map(element -> element.select("a"));
-
-        List<String> citiesUrls = elements
-                .map(element -> StreamSupport.stream(element.spliterator(), false) // no me deja hacer stream directamente sobre elements.
-                .map(elements1 -> elements1.attr("abs:href"))
-                .collect(Collectors.toList()))
-                .orElse(Collections.emptyList());
-
-        return citiesUrls;
-        /*
-        // para probar: moverlo
-        int numberOfPages = getNumberOfPages(doc);
-        System.out.println("pages: " + numberOfPages);
-         */
-
     }
 
     // ------ The methods here below are for getting info from the restaurant json ------
